@@ -62,8 +62,7 @@
 			// 
 			// dataGridView1
 			// 
-			this.dataGridView1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+			this.dataGridView1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
 			this.dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
 			this.dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
@@ -74,6 +73,7 @@
 			this.dataGridView1.RowTemplate.Height = 21;
 			this.dataGridView1.Size = new System.Drawing.Size(608, 150);
 			this.dataGridView1.TabIndex = 3;
+			this.dataGridView1.CellValueChanged += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridView1_CellValueChanged);
 			this.dataGridView1.KeyDown += new System.Windows.Forms.KeyEventHandler(this.dataGridView1_KeyDown);
 			// 
 			// Find
@@ -90,7 +90,8 @@
 			// 
 			// listBox1
 			// 
-			this.listBox1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+			this.listBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
 			this.listBox1.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawVariable;
 			this.listBox1.FormattingEnabled = true;
@@ -104,6 +105,7 @@
 			// 
 			// cmbSheets
 			// 
+			this.cmbSheets.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
 			this.cmbSheets.FormattingEnabled = true;
 			this.cmbSheets.Location = new System.Drawing.Point(13, 423);
 			this.cmbSheets.Name = "cmbSheets";
@@ -123,7 +125,7 @@
 			this.Controls.Add(this.btnReplace);
 			this.MinimumSize = new System.Drawing.Size(641, 511);
 			this.Name = "Form1";
-			this.Text = "Form1";
+			this.Text = "Find & Replace";
 			((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).EndInit();
 			this.ResumeLayout(false);
 

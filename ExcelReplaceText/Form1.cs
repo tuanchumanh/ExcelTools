@@ -23,6 +23,7 @@ namespace ExcelReplaceText
 			dataGridView1.Rows.Add(new object[] { "商品統一コード", "高山商品コード" });
 			dataGridView1.Rows.Add(new object[] { "JAN", "ＪＡＮコード" });
 			dataGridView1.Rows.Add(new object[] { "ＪＡＮ", "ＪＡＮコード" });
+			dataGridView1.Rows.Add(new object[] { "メーカー", "仕入先" });
 		}
 
 		XLWorkbook workbook = null;
@@ -57,14 +58,14 @@ namespace ExcelReplaceText
 				listBox1.Items.Remove(item);
 			}
 
-			foreach (var worksheet in ws.Workbook.Worksheets)
+			foreach (var worksheet in workbook.Worksheets)
 			{
 				worksheet.SheetView.View = XLSheetViewOptions.PageBreakPreview;
 				worksheet.Cell(1, 1).SetActive();
 			}
 
 			string saveAsName = Path.Combine(Path.GetDirectoryName(fileName), Path.GetFileNameWithoutExtension(fileName) + "_Edit" + Path.GetExtension(fileName));
-			ws.Workbook.Save();
+			workbook.Save();
 		}
 
 		private static string fileName = null;
@@ -195,7 +196,9 @@ namespace ExcelReplaceText
 
 		private void listBox1_DrawItem(object sender, DrawItemEventArgs e)
 		{
-			e.DrawBackground();
+			Brush brush = ((e.State & DrawItemState.Selected) == DrawItemState.Selected) ?
+				  Brushes.LightBlue : new SolidBrush(e.BackColor);
+			e.Graphics.FillRectangle(brush, e.Bounds);
 
 			if (e.Index == -1) return;
 
@@ -229,8 +232,8 @@ namespace ExcelReplaceText
 			if (e.Index == -1) return;
 			MatchValue value = (MatchValue)listBox1.Items[e.Index];
 
-			int count = value.CellValue.Split(new string[] { Environment.NewLine }, StringSplitOptions.None).Length - 1;
-			if (count > 0)
+			int count = value.CellValue.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None).Length;
+			if (count > 1)
 				e.ItemHeight = e.ItemHeight * count;
 		}
 
@@ -238,46 +241,41 @@ namespace ExcelReplaceText
 		{
 			if (e.Control && e.KeyCode == Keys.V)
 			{
-				//DataObject o = (DataObject)Clipboard.GetDataObject();
-				//if (o.GetDataPresent(DataFormats.Text))
-				//{
-				//	if (dataGridView1.RowCount > 0)
-				//		dataGridView1.Rows.Clear();
+				DataObject o = (DataObject)Clipboard.GetDataObject();
+				if (o.GetDataPresent(DataFormats.Text))
+				{
+					string[] pastedRows = Regex.Split(o.GetData(DataFormats.Text).ToString().TrimEnd("\r\n".ToCharArray()), "\r\n");
+					foreach (string pastedRow in pastedRows)
+					{
+						string[] pastedRowCells = pastedRow.Split(new char[] { '\t' }, StringSplitOptions.RemoveEmptyEntries);
+						dataGridView1.Rows.Add(pastedRowCells);
+					}
+				}
 
-				//	if (dataGridView1.ColumnCount > 0)
-				//		dataGridView1.Columns.Clear();
+				var selectedSheet = cmbSheets.SelectedItem as string;
+				if (string.IsNullOrEmpty(selectedSheet))
+				{
+					return;
+				}
 
-				//	bool columnsAdded = false;
-				//	string[] pastedRows = Regex.Split(o.GetData(DataFormats.Text).ToString().TrimEnd("\r\n".ToCharArray()), "\r\n");
-				//	foreach (string pastedRow in pastedRows)
-				//	{
-				//		string[] pastedRowCells = pastedRow.Split(new char[] { '\t' });
-
-				//		if (!columnsAdded)
-				//		{
-				//			for (int i = 0; i < pastedRowCells.Length; i++)
-				//				dataGridView1.Columns.Add("col" + i, pastedRowCells[i]);
-
-				//			columnsAdded = true;
-				//			continue;
-				//		}
-
-				//		dataGridView1.Rows.Add();
-				//		int myRowIndex = dataGridView1.Rows.Count - 1;
-
-				//		using (DataGridViewRow dataGridView1Row = dataGridView1.Rows[myRowIndex])
-				//		{
-				//			for (int i = 0; i < pastedRowCells.Length; i++)
-				//				dataGridView1Row.Cells[i].Value = pastedRowCells[i];
-				//		}
-				//	}
-				//}
+				SetActiveWorksheet(selectedSheet);
 			}
 		}
 
 		private void cmbSheets_SelectedIndexChanged(object sender, EventArgs e)
 		{
 			SetActiveWorksheet(cmbSheets.SelectedItem as string);
+		}
+
+		private void dataGridView1_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+		{
+			var selectedSheet = cmbSheets.SelectedItem as string;
+			if (string.IsNullOrEmpty(selectedSheet))
+			{
+				return;
+			}
+
+			SetActiveWorksheet(selectedSheet);
 		}
 	}
 }
