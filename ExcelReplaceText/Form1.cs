@@ -39,18 +39,37 @@ namespace ExcelReplaceText
 			var selectedItems = listBox1.SelectedItems;
 			List<MatchValue> toBeRemoved = new List<MatchValue>();
 			IXLRange printArea = ws.PageSetup.PrintAreas.FirstOrDefault();
-			int colCount = printArea.ColumnCount();
+			int colCount = 0;
+			if (printArea != null)
+			{
+				colCount = printArea.ColumnCount();
+			}
+
 			foreach (MatchValue item in selectedItems)
 			{
-				string newValue = item.CellValue
-					.Remove(item.MatchIndex, item.ToBeReplacedString.Length)
-					.Insert(item.MatchIndex, item.ReplacementString);
-				ws.Cell(item.CellPosition).Value = newValue;
-				ws.Cell(item.CellPosition).RichText.Substring(item.MatchIndex, item.ReplacementString.Length).FontColor = XLColor.Red;
+				ws.Cell(item.CellPosition).Value = (ws.Cell(item.CellPosition).Value as string)
+					.Remove(item.StartIndex, item.ToBeReplacedString.Length)
+					.Insert(item.StartIndex, item.ReplacementString);
 
-				ws.Cell(item.CellPosition.RowNumber, colCount + 1).Value = DateTime.Now.ToString("yyyy/MM/dd") + " 変更";
-				ws.Cell(item.CellPosition.RowNumber, colCount + 1).Style.Font.FontColor = XLColor.Red;
+				int offset = item.ReplacementString.Length - item.ToBeReplacedString.Length;
+				foreach (MatchValue itemBehind in selectedItems.Cast<MatchValue>()
+					.Where(x => x.CellPosition == item.CellPosition && x.StartIndex > item.StartIndex))
+				{
+					itemBehind.StartIndex += offset;
+				}
+
+				if (colCount != 0)
+				{
+					ws.Cell(item.CellPosition.RowNumber, colCount + 1).Value = DateTime.Now.ToString("yyyy/MM/dd") + " 変更";
+					ws.Cell(item.CellPosition.RowNumber, colCount + 1).Style.Font.FontColor = XLColor.Red;
+				}
+
 				toBeRemoved.Add(item);
+			}
+
+			foreach (MatchValue item in selectedItems)
+			{
+				ws.Cell(item.CellPosition).RichText.Substring(item.StartIndex, item.ReplacementString.Length).FontColor = XLColor.Red;
 			}
 
 			foreach (var item in toBeRemoved)
@@ -64,8 +83,15 @@ namespace ExcelReplaceText
 				worksheet.Cell(1, 1).SetActive();
 			}
 
-			string saveAsName = Path.Combine(Path.GetDirectoryName(fileName), Path.GetFileNameWithoutExtension(fileName) + "_Edit" + Path.GetExtension(fileName));
-			workbook.Save();
+			if (checkBox1.Checked)
+			{
+				workbook.Save();
+			}
+			else
+			{
+				string saveAsName = Path.Combine(Path.GetDirectoryName(fileName), Path.GetFileNameWithoutExtension(fileName) + "_Edit" + Path.GetExtension(fileName));
+				workbook.SaveAs(saveAsName);
+			}
 		}
 
 		private static string fileName = null;
@@ -74,6 +100,7 @@ namespace ExcelReplaceText
 		{
 			public IXLAddress CellPosition { get; set; }
 			public int MatchIndex { get; set; }
+			public int StartIndex { get; set; }
 			public string CellValue { get; set; }
 			public string ToBeReplacedString { get; set; }
 			public string ReplacementString { get; set; }
@@ -88,6 +115,7 @@ namespace ExcelReplaceText
 
 			if (saveFileDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
 			{
+				btnClose_Click(sender, e);
 				fileName = saveFileDialog.FileName;
 				using (workbook = new XLWorkbook(fileName, XLEventTracking.Disabled))
 				{
@@ -96,7 +124,14 @@ namespace ExcelReplaceText
 						cmbSheets.Items.Add(worksheet.Name);
 					}
 
-					cmbSheets.SelectedItem = "3章 処理説明書";
+					if (cmbSheets.Items.Contains("3章 処理説明書"))
+					{
+						cmbSheets.SelectedItem = "3章 処理説明書";
+					}
+					else if (cmbSheets.Items.Count > 0)
+					{
+						cmbSheets.SelectedIndex = 0;
+					}
 				}
 			}
 		}
@@ -107,8 +142,9 @@ namespace ExcelReplaceText
 			if (ws != null)
 			{
 				listBox1.Items.Clear();
-				var valueList = dataGridView1.Rows.Cast<DataGridViewRow>().Select(r => r.Cells[0].Value as string).Where(v => v != null).ToList();
-				var replaceList = dataGridView1.Rows.Cast<DataGridViewRow>().Select(r => r.Cells[1].Value as string).Where(v => v != null).ToList();
+				var valueList = dataGridView1.Rows.Cast<DataGridViewRow>().Select(r => r.Cells[0] == null ? string.Empty : r.Cells[0].Value as string).Where(v => v != null).ToList();
+				var replaceList = dataGridView1.Rows.Cast<DataGridViewRow>().Select(r => r.Cells[1] == null ? string.Empty : r.Cells[1].Value as string).Where(v => v != null).ToList();
+
 				var cells = ws.CellsUsed(x => CellContainsList(x, valueList) && !x.Style.Font.Strikethrough);
 				foreach (var cell in cells)
 				{
@@ -116,13 +152,30 @@ namespace ExcelReplaceText
 					{
 						if (CellContains(cell, compareToValue))
 						{
+							//var indexes = AllIndexesOf(cell.Value as string, compareToValue);
+							//foreach (var index in indexes)
+							//{
+							//	MatchValue itemValue = new MatchValue()
+							//	{
+							//		CellPosition = cell.Address,
+							//		MatchIndex = index,
+							//		CellValue = cell.Value as string,
+							//		ToBeReplacedString = compareToValue,
+							//		ReplacementString = replaceList[valueList.IndexOf(compareToValue)],
+							//	};
+
+							//	listBox1.Items.Add(itemValue);
+							//}
+
 							var indexes = AllIndexesOf(cell.Value as string, compareToValue);
-							foreach (var index in indexes)
+
+							for (int i = 0; i < indexes.Count; i++)
 							{
 								MatchValue itemValue = new MatchValue()
 								{
 									CellPosition = cell.Address,
-									MatchIndex = index,
+									MatchIndex = i,
+									StartIndex = indexes[i],
 									CellValue = cell.Value as string,
 									ToBeReplacedString = compareToValue,
 									ReplacementString = replaceList[valueList.IndexOf(compareToValue)],
@@ -151,7 +204,12 @@ namespace ExcelReplaceText
 
 		private static bool CellContains(IXLCell value, string compareToValue)
 		{
-			if (value == null || compareToValue == null)
+			if (value == null || string.IsNullOrEmpty(compareToValue))
+			{
+				return false;
+			}
+
+			if (value.HasFormula)
 			{
 				return false;
 			}
@@ -205,17 +263,30 @@ namespace ExcelReplaceText
 			MatchValue value = (MatchValue)listBox1.Items[e.Index];
 			int length = 0;
 			Point pt = new Point(e.Bounds.X, e.Bounds.Y);
-			if (value.MatchIndex != 0)
+
+			var normalHeight = TextRenderer.MeasureText("Y", Font).Height;
+
+			string location = string.Format("({0}{1})", value.CellPosition.ColumnLetter, value.CellPosition.RowNumber);
+			TextRenderer.DrawText(e.Graphics, location, Font, pt, Color.Black);
+			pt.X += TextRenderer.MeasureText(location, Font).Width - 2;
+
+			if (value.StartIndex != 0)
 			{
-				string beforeString = new string(value.CellValue.Take(value.MatchIndex).ToArray());
+				string beforeString = new string(value.CellValue.Take(value.StartIndex).ToArray());
 				TextRenderer.DrawText(e.Graphics, beforeString, Font, pt, Color.Black);
-				pt.X += TextRenderer.MeasureText(beforeString, Font).Width - 5;
+
+				// Last line width
+				string beforeStringLastLine = beforeString.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None).LastOrDefault();
+				pt.X += TextRenderer.MeasureText(beforeStringLastLine, Font).Width - 2;
+
+				pt.Y += TextRenderer.MeasureText(beforeString, Font).Height - normalHeight;
 				length += beforeString.Length;
 			}
 
 			var boldFont = new Font(Font.FontFamily, Font.Size, FontStyle.Bold);
 			TextRenderer.DrawText(e.Graphics, value.ToBeReplacedString, boldFont, pt, Color.Black);
 			pt.X += TextRenderer.MeasureText(value.ToBeReplacedString, Font).Width + 3;
+			pt.Y += TextRenderer.MeasureText(value.ToBeReplacedString, Font).Height - normalHeight;
 
 			length += value.ToBeReplacedString.Length;
 			if (length < value.CellValue.Length)
@@ -269,6 +340,16 @@ namespace ExcelReplaceText
 
 		private void dataGridView1_CellValueChanged(object sender, DataGridViewCellEventArgs e)
 		{
+			if (e.RowIndex < 0)
+			{
+				return;
+			}
+
+			if (dataGridView1.Rows[e.RowIndex].Cells[0].Value == null || dataGridView1.Rows[e.RowIndex].Cells[1].Value == null)
+			{
+				return;
+			}
+
 			var selectedSheet = cmbSheets.SelectedItem as string;
 			if (string.IsNullOrEmpty(selectedSheet))
 			{
@@ -276,6 +357,19 @@ namespace ExcelReplaceText
 			}
 
 			SetActiveWorksheet(selectedSheet);
+		}
+
+		private void btnClose_Click(object sender, EventArgs e)
+		{
+			ws = null;
+			workbook = null;
+			cmbSheets.Items.Clear();
+			listBox1.Items.Clear();
+		}
+
+		private void checkBox1_CheckedChanged(object sender, EventArgs e)
+		{
+
 		}
 	}
 }
